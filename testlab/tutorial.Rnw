@@ -1,0 +1,338 @@
+\documentclass[a4paper]{article}
+\usepackage{Sweave}
+\usepackage{color}
+%\usepackage[colorinlistoftodos]{todonotes}
+
+\author{Christof Neumann and Andrew P. Clark}
+\title{\texttt{EloChoice (v. 0.29.1)} - a brief tutorial}
+% \usepackage{natbib}
+% \bibliographystyle{agsm}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1.2in]{geometry}
+\usepackage{hyperref}
+\hypersetup{colorlinks,citecolor=black,filecolor=black,linkcolor=black,urlcolor=black}
+\usepackage{amsmath}
+
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+%\VignetteIndexEntry{EloChoice-tutorial.Rnw}
+<<echo=false>>=
+options(width=80)
+options(continue=" ", prompt=" ")
+RUNS <- 50 # for the simulations
+@
+\maketitle
+
+\tableofcontents
+
+
+\section{introduction}
+\paragraph{}
+The overall goal of this document is to provide a short manual on how to calculate Elo-ratings for attractiveness ratings on pairwise presented stimuli. Below, we provide a worked example (section~\ref{sec:workedexample}) based on an artificially generated data set. We suggest you go through this example before using the method on your own data set. Section~\ref{sec:reliability} explains in a bit more detail the suggested reliability index as means to evaluate stability in ratings. The next section (section~\ref{sec:empiricalexample}) deals with an empirical data set, which comes with the package.
+
+\paragraph{}
+In general, the underlying idea of the Elo-rating procedure is to update individual scores after pair-wise contests based on the expected outcome of the contest \textit{before} a contest actually takes place. The more expected an outcome was, the smaller is the change in scores of the two contestants. Conversely, the more unexpected an outcome was, the larger are the score changes. The expectation of an contest outcome is expressed as the difference in Elo-ratings before the contest. Inherent in this general philosophy is that scores of contestants change over time - think of a chess or tennis player or an animal that at the start of her career will have a relatively low score (and/or rank), which may increase over time and eventually will drop again.
+
+\paragraph{}
+Now, when we think of a pair of visual stimuli as `contestants', for example in the context of attractiveness ratings, the aspect of dynamics over time is much less important. Typically, an experiment of attractiveness is conducted over a very brief period of time (at least relatively, compared to a chess player's career or a monkey's life), and as such we expect such changes in attractiveness over time to play only a negligible role. Elo-rating, as implemented in this package and tutorial, will still result in a reliable ranking of stimuli attractiveness. The crucial aspect of this package is that Elo-ratings are based on multiple randomized sequences of ratings, which we refer to as \emph{mElo} in the accompanying paper. Though not strictly necessary, we think this is a prudent approach, because the order in which rating trials occur in the sequence may affect the final Elo-ratings of the stimuli, at least in small data sets (small in terms of stimuli or small in number of rating trials).
+
+\section{a worked example}
+\label{sec:workedexample}
+\paragraph{}
+The first thing to be done is to install and load the package.\footnote{Installing has to be done once, while loading the package has to be done each time you restart \texttt{R}} Eventually, a simple \texttt{install.packages("EloChoice")} will suffice (once the package is on the official R server). Also note that we need the packages \texttt{Rcpp} and \texttt{RcppArmadillo} installed, which should be automatically downloaded and installed if you use the \texttt{install.packages("EloChoice")} command.\footnote{\texttt{install.packages("Rcpp")} and \texttt{install.packages("RcppArmadillo")} will install the two packages by hand}
+
+<<installpackage,eval=FALSE>>=
+install.packages(EloChoice) # install package (to be done once)
+@
+<<loadpackage>>=
+library(EloChoice) # load package (every time you want to use the package)
+@
+
+\subsection{get the data into R}
+\paragraph{}
+If you already know how to read your raw data into R, you can skip this section. We assume that you have your ratings organized in a table, in which each line corresponds to a rating event/trial. There is at least a column for the stimulus that was preferred by the rater and the one that was not. Additional columns are likely to be present and table~\ref{tab:Ex} provides an example. Most likely you will have organized this table in a spreadsheet software like Excel or OpenOffice. The perhaps simplest way of reading a data set into R is to first save your data table from the spreadsheet software as tab-delimited text file (File>Save as...> and then choose ``Tab Delimited Text (.txt)'').
+\paragraph{}
+Having such a text-file, it is then easy to read that data set into R and save it as an object named \texttt{xdata}\footnote{you can name this object any way you like, \texttt{xdata} is just a personal convention}:
+<<eval=FALSE>>=
+xdata <- read.table("c:\\datafiles\\myfile.txt", sep="\t", header=T) # Windows
+xdata <- read.table("/Volumes/mydrive/myfile.txt", sep="\t", header=T) # Mac
+str(xdata)
+@
+\paragraph{}
+Note that you have to specify the full path to the place where the data file is saved.\footnote{You can also use \texttt{setwd()} to define a new root directory or you can use (the freely available) RStudio, which offers nice options to work in projects that facilitate reading of files among others.} The \texttt{sep="\symbol{92}t"} argument tells R that you used a tab to separate entries within a line. The \texttt{header=T} argument tells R that the first line in your table are column headers. Finally, the \texttt{str(xdata)} command gives a brief overview over the data set, which you can use to check whether the import went smoothly (for example, as indicated by the number of lines (\texttt{obs.} in the output of \texttt{str()}), which should correspond to the number of trials in your data set).
+
+<<echo=FALSE,results=tex>>=
+  library(xtable)
+  winner <- c("ab", "cf", "ab", "dd", "ab")
+  loser <- c("cf", "xs", "xs", "cf", "cf")
+  rater <- c("A", "A", "A", "A", "B")
+  date <- c("2010-01-01", "2010-01-01", "2010-01-01", "2010-01-01", "2010-01-04")
+  time <- c("14:34:01", "14:34:08", "14:34:11", "14:34:15", "09:17:20")
+  mytab <- data.frame(winner, loser, rater, date, time)
+  colnames(mytab) <- c("preferred stimulus", "losing stimulus", "rater", "date", "time")
+  cap <- "A possible data set layout. Note that R replaces space in column names with periods."
+  print(xtable(mytab, align = , c("c", "c", "c", "c", "c", "c"), caption=cap,  label="tab:Ex"), include.rownames = FALSE, caption.placement="top")
+@
+
+
+\paragraph{}
+If the import was successful, the only thing you need to know is that for the functions of the package to work we need to access the columns of the data table individually. This can be achieved by using the dollar character. For example \texttt{xdata\$preferred.stimulus} returns the column with the preferred stimuli (as per table~\ref{tab:Ex}). If you are unfamiliar with this, it will become clear while going through the examples in the next section.
+
+
+\subsection{random data}
+\paragraph{}
+Throughout this first part of the tutorial, we will use randomly generated data sets. We begin by creating such a random data set with the function \texttt{randompairs()}, which we name \texttt{xdata}.\footnote{You are by no means bound to use the name \texttt{xdata} for this object, this is just a personal convention}
+
+<<createrandomdata>>=
+set.seed(123)
+xdata <- randompairs(nstim = 20, nint = 500, reverse = 0.1)
+head(xdata)
+@
+
+\paragraph{}
+The command \texttt{set.seed(123)} simply ensures that each time you run this it will create the same data set as it shown in this tutorial. If you want to create a truly random data set, just leave out this line.
+
+\paragraph{}
+The function as is created a data set with 20 different stimuli (\texttt{nstim=20}), which were presented in 500 presentations/trials (\texttt{nint=500}). The \texttt{head()} command displays the first six lines of the newly created data set.\footnote{If you want to see the entire data set, simply type \texttt{xdata}} You can see the stimulus IDs: the \texttt{winner}-column refers to the preferred stimulus (the `winner' of the trial) and the \texttt{loser}-column to the second/unpreferred stimulus (the `loser'). The \texttt{index}-column simply displays the original order in which the stimuli were presented. Note also that the data set is generated in a way such that there is always a preference for the stimulus that comes first in alphanumeric order, which is reversed in 10\% of trials (\texttt{reverse=0.1}). This ensures that a hierarchy of stimuli actually arises.
+
+\subsection{Calculating the ratings}
+\paragraph{}
+We then can go on to calculate the actual ratings from this sequence. Again, to enable you to obtain the exact results as presented in this tutorial, I use the \texttt{set.seed()} function.
+<<>>=
+set.seed(123)
+res <- elochoice(winner = xdata$winner, loser = xdata$loser, runs = 500)
+summary(res)
+@
+\paragraph{}
+The two code pieces \texttt{winner = xdata\$winner} and \texttt{loser = xdata\$loser} specify the two columns in our data table that represent the winning (`preferred') and losing (`not preferred') stimuli, respectively. The \texttt{runs = 500} bit indicates how many random sequences of presentation order we want to calculate.
+
+\paragraph{}
+We saved the results in an object named \texttt{res}, from which can we can get a brief summary with the \texttt{summary(res)} function. From this, we can see that there were 20 stimuli in the data set, each appearing between 33 and 61 times. Also note that we randomized the original sequence 500 times. In case you have larger data sets, you may want to reduce the number of randomizations to reduce the computation time and to explore whether everything runs as it should.\footnote{On my laptop PC, the calculations of this example take less than a second, but this can drastically increase if you have larger data sets and/or want to use larger number of randomizations.}
+\paragraph{}
+Next, we obviously want to see what the actual Elo-ratings are for the stimuli used in the data set. For this, we use the function \texttt{ratings()}.
+<<>>=
+ratings(res, show="original", drawplot=FALSE)
+@
+\paragraph{}
+The \texttt{show="original"} argument specifies that we wish to see the ratings as obtained from the initial (original) data sequence. If we want to have the ratings averaged across all randomizations (`mElo'), we change the argument to \texttt{show="mean"}.
+<<>>=
+ratings(res, show="mean", drawplot=FALSE)
+@
+\paragraph{}
+Similarly, you can also request \textit{all} ratings from \textit{all} randomizations, using \texttt{show="all"} or return the ranges across all randomizations with \texttt{show="range"}.
+
+\paragraph{}
+If you wish to export ratings, you can use the \texttt{write.table()} function, which saves your data in a text file that can easily be opened in a spreadsheet program. First, we save the rating results into a new object, \texttt{myratings}, which we then export. Note that the resulting text file will be in a `long' format, i.e. each stimulus along with its original or mean rating will appear as one row.
+
+<<eval=FALSE>>=
+myratings <- ratings(res, show="mean", drawplot=FALSE)
+# Windows
+xdata <- write.table(myratings, "c:\\datafiles\\myratings.txt", sep="\t",
+                     header=T)
+# Mac
+xdata <- write.table(myratings, "/Volumes/mydrive/myratings.txt", sep="\t",
+                     header=T)
+@
+
+\paragraph{}
+If you want to export the ratings from each single randomization (i.e. \texttt{show="all"}) or the range of ratings across all randomizations (\texttt{show="range"}), the layout of the text file will be `wide', i.e. each stimulus appears as its own column with each row representing ratings after one randomization or two rows representing the minimum and maximum rating values. By default, R appends row names to the text output, which is not convenient in this case so we turn this option off with \texttt{row.names=F}.
+
+<<eval=FALSE>>=
+myratings <- ratings(res, show="all", drawplot=FALSE)
+# Windows
+xdata <- write.table(myratings, "c:\\datafiles\\myratings.txt", sep="\t",
+                     header=T, row.names=F)
+# Mac
+xdata <- write.table(myratings, "/Volumes/mydrive/myratings.txt", sep="\t",
+                     header=T, row.names=F)
+@
+
+
+\paragraph{}
+Finally, the \texttt{ratings()} function also allows you to take a first graphical glance at how the randomizations affected the ratings.
+
+<<plotting,label=fig1plot>>=
+ratings(res, show=NULL, drawplot=TRUE)
+@
+
+\begin{figure}[t]
+\begin{center}
+<<label=fig1,fig=TRUE,echo=FALSE, width=7, height=4>>=
+<<fig1plot>>
+@
+\end{center}
+\caption{Elo ratings of 20 stimuli after 500 rating events and 500 randomizations of the sequence. The black circles represent the average rating at the end of the 500 generated sequences for each stimulus, and the black lines represent their ranges. The grey circles show the final ratings from the original sequence.}
+\label{fig:one}
+\end{figure}
+
+\paragraph{}
+Figure~\ref{fig:one} shows the average ratings across the 500 randomizations as black circles, while the ratings from the original/initial sequence are indicated by the smaller red circles The vertical bars represent the ranges of Elo-ratings across the 500 randomizations for each stimulus.
+
+
+\section{reliability-index}
+\label{sec:reliability}
+\subsection{background}
+\paragraph{}
+We define an reliability-index as $R = 1- \frac{\sum{u}}{N}$, where $N$ is the total number of rating events/trials for which an expectation for the outcome of the trial existed\footnote{Consequently, the maximum value $N$ can take is the number of trials minus one, because for at least the very first trial in a sequence, no expectation can be expressed} and $u$ is a vector containing 0's and 1's, in which a $0$ indicates that the preference in this trial was according to the expectation (i.e. the stimulus with the higher Elo-rating before the trial was preferred), and a $1$ indicates a trial in which the expectation was violated, i.e. the stimulus with the lower Elo-rating before the trial was preferred (an `upset'). In other words, $R$ is the proportion of trials that went in accordance with the expectation. Note that trials without any expectation, i.e. those for which ratings for both stimuli are identical, are excluded from the calculation. Subtracting the proportion from $1$ is done to ensure that if there are no upsets ($\sum {u}=0$), the index is $1$, thereby indicating complete agreement between expectation and observed rating events. For example, in table~\ref{tab:upset} there are ten rating events/trials, four of which go against the expectation (i.e. they are upsets), yielding an reliability-index of $1-4/10=0.6$.
+
+\paragraph{}
+This approach can be extended to calculate a weighted reliability index, where the weight is given by the absolute Elo-rating difference, an index we denote $R'$ and which is defined as $R' = 1- \sum_{i=1}^{N} {\frac{u_i * w_i}{\sum{w}}}$, where $u_i$ is the same vector of 0's and 1's as described above and $w_i$ is the absolute Elo-rating difference, i.e. the weight. Following this logic, stronger violations of the expectation contribute stronger to the reliability index than smaller violations. For example, column 3 in table~\ref{tab:upset} contains fictional rating differences, which for illustrative purposes are assigned in a way such that the four largest rating differences (200, 200, 280, 300) correspond to the four upsets, which should lead to a smaller reliability index as compared to the simpler version described earlier. Applying this leads to $R'=1-0.57=0.43$. In contrast, if we apply the smallest rating differences (90, 100, 120, 140, as per column 4 in table~\ref{tab:upset}) to the upsets, this should lead to a larger reliability-index, which it does: $R'=1-0.26=0.74$.
+
+<<echo=FALSE,results=tex>>=
+library(xtable)
+pref <- c(1,1,0,0,1,0,1,0,0,0)
+upset <- c("yes", "yes", "no", "no", "yes","no", "yes", "no","no","no" )
+ratingdiff  <- c(200, 300, 100, 150, 200, 140, 280, 90, 150, 120)
+ratingdiff2 <- c(90, 100, 300, 280, 120, 200, 140, 150, 200, 150)
+mytab <- data.frame(pref, upset, ratingdiff, ratingdiff2)
+colnames(mytab) <- c("higher rated = preferred", "upset", "rating difference 1", "rating difference 2")
+cap <- "10 rating decisions that were either in accordance with the prediction or not. Two different rating differences are given to illustrate the weighted upset index. Note that the values are the same, just their assignment to different interactions is changed and consequently the column means are the same for both (173)."
+print(xtable(mytab, digits = c(NA,0,NA,0, 0), align = , c("c", "c", "c", "c", "c"), caption=cap,  label="tab:upset"), include.rownames = FALSE, caption.placement="top")
+@
+
+
+\subsection{application}
+\paragraph{}
+To calculate the reliability-index, we use the function \texttt{reliability()}. Note that we calculated our initial Elo-ratings based on 500 randomizations, so to save space, I'll display only the first six lines of the results (the \texttt{head(...)} function).
+<<>>=
+upsets <- reliability(res)
+head(upsets)
+@
+\paragraph{}
+Each line in this table represents one randomization.\footnote{the first line corresponds to the actual original sequence} The first column represents the unweighted and the second the weighted reliability index ($R$ and $R'$), which is followed by the total number of trials that contributed to the calculation of the index. Note that this number cannot reach 500 (our total number of trials in the data set) because at least for the very first trial we did not have an expectation for the outcome of that trial.
+
+\paragraph{}
+We then calculate the average values for both the unweighted and weighted upset indices.
+<<>>=
+mean(upsets$upset)
+mean(upsets$upset.wgt)
+@
+
+
+\paragraph{}
+Remember that our data set contained a fairly low number of `reversals', i.e. 10\% of trials went against the predefined preference (e.g. `A' is preferred over `K'). As such, the $R$ and $R'$ values are fairly high ($\sim 0.8 - 0.9$). If we create another data set, in which reversals are more common, we can see that the values go down.
+
+<<>>=
+set.seed(123)
+xdata <- randompairs(nstim = 20, nint = 500, reverse = 0.3)
+res <- elochoice(winner = xdata$winner, loser = xdata$loser, runs = 500)
+upsets <- reliability(res)
+mean(upsets$upset)
+mean(upsets$upset.wgt)
+@
+
+\subsection[how many raters?]{how many raters?\footnote{thanks to TF for the suggestion}}
+\paragraph{}
+A note of caution. The functions described in the following section have not been very thoroughly tested (yet). If they fail or produce confusing results, please let us know!
+
+\paragraph{}
+We may also wonder how many raters are needed to achieve stability in ratings. The function \texttt{raterprog()} allows assessing this. The idea here is to start with one rater, calculate reliability, add the second rater, re-calculate reliability, add the third rater, re-calculate reliability, etc. In order to calculate this progressive reliability, obviously you need a column in your data set that reflects rater IDs. For this demonstration we use a subset\footnote{a subset because the calculations can take very long, depending on the size of your data set} of a data set that is described further below (section~\ref{sec:empiricalexample}).
+
+<<>>=
+data(physical)
+# limit to 10 raters
+physical <- subset(physical, raterID %in% c(1, 2, 8, 10, 11, 12, 23, 27, 31, 47))
+set.seed(123)
+res <- raterprog(physical$Winner, physical$Loser, physical$raterID,
+                 progbar = FALSE)
+@
+
+<<plotting,label=raterprog1>>=
+raterprogplot(res)
+@
+
+\begin{figure}
+\begin{center}
+<<label=raterprog1, fig=TRUE, echo=FALSE, width=7, height=4>>=
+<<raterprog1>>
+@
+\end{center}
+\caption{Reliability index $R'$ as function of number of raters included in the rating process. In this example, it appears as if including 5 raters is sufficient, as additional raters improve rating reliability relatively little. }
+\label{fig:raterprog1}
+\end{figure}
+
+\paragraph{}
+When we look at the results (figure~\ref{fig:raterprog1}), we may conclude that with this data set using the data from the first 5 raters may be sufficient to achieve high reliability. Alternatively, we could conclude that 8 raters are needed.
+
+\paragraph{}
+It may be advisable, however, to not necessarily rely on the original sequence of raters involved. In the general spirit of the package, we can randomize the order with which raters are included. We can do this by increasing the \texttt{ratershuffle=} argument from its default value\footnote{which is 1, but in fact reflects the original rater sequence}. Note that doing so will increase computation time even further, so start with small values if applying this to your own data to test whether the functions work as intended.
+
+
+<<>>=
+set.seed(123)
+res <- raterprog(physical$Winner, physical$Loser, physical$raterID,
+                 progbar = FALSE, ratershuffle = 4)
+@
+
+<<plotting,label=raterprog2>>=
+raterprogplot(res)
+@
+
+\begin{figure}
+\begin{center}
+<<label=raterprog2, fig=TRUE, echo=FALSE, width=7, height=4>>=
+<<raterprog2>>
+@
+\end{center}
+\caption{Reliability index $R'$ as function of number of raters included in the rating process. Here, we used the original rater order and an additional 9 random orders. Grey bars reflect quartiles, grey points are the results from the original rater order (compare to figure~\ref{fig:raterprog1}), and black points are the average values of the 10 rater orders used. The interpretation would likely to be the same as for figure~\ref{fig:raterprog1}.  }
+\label{fig:raterprog2}
+\end{figure}
+
+
+\paragraph{}
+The results of this (figure~\ref{fig:raterprog2}), probably would be interpreted the same way as those of figure~\ref{fig:raterprog1}.
+
+
+\section{an empirical example}
+\label{sec:empiricalexample}
+\paragraph{}
+In the following, we go through an empirical example data set. Here, 56 participants were asked to choose the one out of two presented bodies which depicted the stronger looking male. Each of the 82 stimuli appeared 112 times, resulting in a total of 4,592 rating trials.
+\paragraph{}
+We start by loading the data set. Then we calculate the Elo-ratings, show the average ratings and plot them (figure~\ref{fig:two}).
+<<>>=
+data(physical)
+set.seed(123)
+res <- elochoice(winner = physical$Winner, loser = physical$Loser, runs = 500)
+summary(res)
+ratings(res, show = "mean", drawplot = FALSE)
+@
+
+<<plotting,label=fig2plot>>=
+ratings(res, show=NULL, drawplot=TRUE)
+@
+
+\begin{figure}[t]
+\begin{center}
+<<label=fig2,fig=TRUE,echo=FALSE, width=7, height=4>>=
+<<fig2plot>>
+@
+\end{center}
+\caption{Elo ratings of 82 stimuli after 4,592 rating events and 500 randomizations of the sequence. The black circles represent the average rating at the end of the 500 generated sequences, and the black lines represent their ranges. The grey circles show the final ratings from the original sequence. Note that not all stimulus IDs fit on the x-axis, so most are omitted.}
+\label{fig:two}
+\end{figure}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{self-contests}
+\label{sec:selfies}
+\paragraph{}
+Depending on how the stimulus presentation is prepared, there may be cases (trials) in the final data set in which a stimulus is paired with itself (`self-contest'). As long as the presentation is indeed of pairs of stimuli this is not a problem because such self-contests are irrelevant to refine the true rating of a stimulus (as opposed to pairs of two different stimuli). If there are three or more stimuli presented in one trial, the situation becomes different if for example two `A's are presented with one `B'. However, this is an issue to be dealt with later, when presentation of triplets or more stimuli is properly implemented in the package (currently under development).
+
+\paragraph{}
+For now, self-contests are excluded from analysis of stimulus pairs for the reason mentioned above. However, a message that such self-contests occur in the data will be displayed in such cases.\footnote{In this document the actual message does not show, but if you run the code yourself you should be able to see it.}
+
+<<>>=
+# total of seven trials with two 'self-trials' (trials 6 and 7)
+w <- c(letters[1:5], "a", "b"); l <- c(letters[2:6], "a", "b")
+res <- elochoice(w, l)
+ratings(res, drawplot=FALSE)
+summary(res)
+# total of five trials without 'self-trials'
+w <- c(letters[1:5]); l <- c(letters[2:6])
+res <- elochoice(w, l)
+ratings(res, drawplot=FALSE)
+summary(res)
+@
+
+
+\end{document}

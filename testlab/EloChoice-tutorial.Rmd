@@ -1,0 +1,141 @@
+---
+title: "EloChoice: a tutorial"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{EloChoice-tutorial}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+author: Christof Neumann and Andrew P Clark
+date: "`r paste(Sys.Date(), ' (v. ', packageVersion('EloChoice'), ')', sep = '')`"
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+library(captioner)
+table_nums <- captioner(prefix = "Table")
+
+```
+
+
+# introduction
+The overall goal of this document is to provide a short manual on how to calculate Elo-ratings for attractiveness ratings on pairwise presented stimuli. Below, we provide [a worked example](#a-worked-example) based on an artificially generated data set. We suggest you go through this example before using the method on your own data set. Section~\ref{sec:reliability} explains in a bit more detail the suggested reliability index as means to evaluate stability in ratings. The next section (section~\ref{sec:empiricalexample}) deals with an empirical data set, which comes with the package.
+
+In general, the underlying idea of the Elo-rating procedure is to update individual scores after pair-wise contests based on the expected outcome of the contest *before* a contest actually takes place. The more expected an outcome was, the smaller is the change in scores of the two contestants. Conversely, the more unexpected an outcome was, the larger are the score changes. The expectation of an contest outcome is expressed as the difference in Elo-ratings before the contest. Inherent in this general philosophy is that scores of contestants change over time - think of a chess or tennis player or an animal that at the start of her career will have a relatively low score (and/or rank), which may increase over time and eventually will drop again.
+
+Now, when we think of a pair of visual stimuli as 'contestants', for example in the context of attractiveness ratings, the aspect of dynamics over time is much less important. Typically, an experiment of attractiveness is conducted over a very brief period of time (at least relatively, compared to a chess player's career or a monkey's life), and as such we expect such changes in attractiveness over time to play only a negligible role. Elo-rating, as implemented in this package and tutorial, will still result in a reliable ranking of stimuli attractiveness. The crucial aspect of this package is that Elo-ratings are based on multiple randomized sequences of ratings, which we refer to as **mElo** in the accompanying paper. Though not strictly necessary, we think this is a prudent approach, because the order in which rating trials occur in the sequence may affect the final Elo-ratings of the stimuli, at least in small data sets (small in terms of stimuli or small in number of rating trials).
+
+# a worked example
+
+The first thing to be done is to install and load the package.[^install1] Eventually, a simple `install.packages("EloChoice")` will suffice (once the package is on the official R server). Also note that we need the packages `Rcpp` and `RcppArmadillo` installed, which should be automatically downloaded and installed if you use the `install.packages("EloChoice")` command.[^install2]
+
+[^install1]: Installing has to be done once, while loading the package has to be done each time you restart `R`
+
+[^install2]: `install.packages("Rcpp")` and `install.packages("RcppArmadillo")` will install the two packages by hand
+
+```{r, eval = FALSE}
+# install package (to be done once)
+install.packages(EloChoice) 
+```
+
+```{r}
+library(EloChoice) # load package (every time you want to use the package)
+```
+
+
+## get the data into R
+
+If you already know how to read your raw data into R, you can skip this section. We assume that you have your ratings organized in a table, in which each line corresponds to a rating event/trial. There is at least a column for the stimulus that was preferred by the rater and the one that was not. Additional columns are likely to be present and table~\ref{tab:Ex} provides an example. Most likely you will have organized this table in a spreadsheet software like Excel or OpenOffice. The perhaps simplest way of reading a data set into R is to first save your data table from the spreadsheet software as tab-delimited text file (File>Save as...> and then choose 'Tab Delimited Text (.txt)').
+
+Having such a text-file, it is then easy to read that data set into R and save it as an object named `xdata`:[^xdata]
+
+[^xdata]: you can name this object any way you like, `xdata` is just a personal convention
+
+```{r, eval=FALSE}
+# Windows
+xdata <- read.table(file = "c:\\datafiles\\myfile.txt", sep = "\t", header = TRUE) 
+
+# Mac
+xdata <- read.table(file = "/Volumes/mydrive/myfile.txt", sep = "\t", header = TRUE)
+
+str(xdata)
+```
+
+Note that you have to specify the full path to the place where the data file is saved.[^wd] The `sep = "\t"` argument tells R that you used a tab to separate entries within a line. The `header = TRUE` argument tells R that the first line in your table are column headers. Finally, the `str(xdata)` command gives a brief overview over the data set, which you can use to check whether the import went smoothly (for example, as indicated by the number of lines (`obs.` in the output of `str()`), which should correspond to the number of trials in your data set).
+
+[^wd]: you can also use `setwd()` to define a new working directory or you can use (the freely available) RStudio, which offers nice options to work in projects that facilitate reading of files (and much more)
+
+```{r exampletab, echo=FALSE, results='markdown'}
+invisible(table_nums(name = "exampletab", caption = "A possible data set layout. Note that R replaces spaces in column names with periods during the reading step."))
+
+winner <- c("ab", "cf", "ab", "dd", "ab")
+loser <- c("cf", "xs", "xs", "cf", "cf")
+rater <- c("A", "A", "A", "A", "B")
+date <- c("2010-01-01", "2010-01-01", "2010-01-01", "2010-01-01", "2010-01-04")
+time <- c("14:34:01", "14:34:08", "14:34:11", "14:34:15", "09:17:20")
+mytab <- data.frame(winner, loser, rater, date, time)
+colnames(mytab) <- c("preferred stimulus", "losing stimulus", "rater", "date", "time")
+# cap <- "A possible data set layout. Note that R replaces space in column names with periods during the reading step."
+cap <- table_nums("exampletab")
+knitr::kable(mytab, caption = cap)
+```
+
+
+If the import was successful, the only thing you need to know is that for the functions of the package to work we need to access the columns of the data table individually. This can be achieved by using the dollar character. For example `xdata$preferred.stimulus` returns the column with the preferred stimuli (as per table `r table_nums("exampletab", display = "n")`). If you are unfamiliar with this, it will become clear while going through the examples in the next section.
+
+
+## random data
+
+Throughout this first part of the tutorial, we will use randomly generated data sets. We begin by creating such a random data set with the function `randompairs()`, which we name `xdata`.
+
+```{r}
+set.seed(123)
+xdata <- randompairs(nstim = 6, nint = 500, reverse = 0.1)
+head(xdata)
+```
+
+The command `set.seed(123)` simply ensures that each time you run this it will create the same data set as it shown in this tutorial. If you want to create a truly random data set, just leave out this line.
+
+With this we created a data set with 20 different stimuli (`nstim = 20`), which were presented in 500 presentations/trials (`nint = 500`). The `head()` command displays the first six lines of the newly created data set.[^entiredata] You can see the stimulus IDs: the `winner`-column refers to the preferred stimulus (the *winner* of the trial) and the `loser`-column to the second/unpreferred stimulus (the *loser*). The `index`-column simply displays the original order in which the stimuli were presented. Note also that the data set is generated in a way such that there is always a preference for the stimulus that comes first in alphanumeric order, which is reversed in 10% of trials (`reverse = 0.1`). This ensures that a hierarchy of stimuli actually arises.
+
+[^entiredata]: If you want to see the entire data set, simply type `xdata`
+
+## calculating the ratings
+
+We then can go on to calculate the actual ratings from this sequence. Again, to enable you to obtain the exact results as presented in this tutorial, I use the `set.seed()` function.
+
+```{r}
+set.seed(123)
+res <- elochoice(winner = xdata$winner, loser = xdata$loser, runs = 500)
+summary(res)
+```
+
+The two code pieces `winner = xdata$winner` and `loser = xdata$loser` specify the two columns in our data table that represent the winning (*preferred*) and losing (*not preferred*) stimuli, respectively. The `runs = 500` bit indicates how many random sequences of presentation order we want to calculate.
+
+We saved the results in an object named `res`, from which can we can get a brief summary with the `summary(res)` command. From this, we can see that there were 20 stimuli in the data set, each appearing between 33 and 61 times. Also note that we randomized the original sequence 500 times. In case you have larger data sets, you may want to reduce the number of randomizations to reduce the computation time and to explore whether everything runs as it should.[^runningtime]
+
+[^runningtime]: on my laptop PC, the calculations of this example take less than a second, but this can drastically increase if you have larger data sets and/or want to use larger number of randomizations
+
+Next, we obviously want to see what the actual Elo-ratings are for the stimuli used in the data set. For this, we use the function `ratings()`:
+
+```{r}
+ratings(res, show = "original", drawplot = FALSE)
+```
+
+The `show = "original"` argument specifies that we wish to see the ratings as obtained from the initial (original) data sequence. If we want to have the ratings averaged across all randomizations (**mElo**), we change the argument to `show = "mean"`:
+
+```{r}
+ratings(res, show = "mean", drawplot = FALSE)
+```
+
+Similarly, you can also request *all* ratings from *all* randomizations, using `show = "all"` or return the ranges across all randomizations with `show = "range"`.
+
+If you wish to export ratings, you can use the `write.table()` function, which saves your data in a text file that can easily be opened in a spreadsheet program. First, we save the rating results into a new object, `myratings`, which we then export. Note that the resulting text file will be in a 'long' format, i.e. each stimulus along with its original or mean rating will appear as one row.
+
+
+
+
+
+
