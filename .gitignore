@@ -1,3 +1,8 @@
+.gitignore
+.Rbuildignore
+
+EloChoice.Rproj
+
 # History files
 .Rhistory
 .Rapp.history
@@ -34,3 +39,7 @@ vignettes/*.pdf
 
 # Shiny token, see https://shiny.rstudio.com/articles/shinyapps.html
 rsconnect/
+.Rproj.user
+inst/doc
+doc
+Meta

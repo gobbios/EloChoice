@@ -1,0 +1,21 @@
+Package: EloChoice
+Type: Package
+Title: Preference Rating for Visual Stimuli Based on Elo Ratings
+Version: 0.29.3
+Date: 2019-07-02
+Author: Christof Neumann
+Maintainer: Christof Neumann <christofneumann1@gmail.com>
+Description: Allows calculating global scores for characteristics of visual stimuli as assessed by human raters. Stimuli are presented as sequence of pairwise comparisons ('contests'), during each of which a rater expresses preference for one stimulus over the other (forced choice). The algorithm for calculating global scores is based on Elo rating, which updates individual scores after each single pairwise contest. Elo rating is widely used to rank chess players according to their performance. Its core feature is that dyadic contests with expected outcomes lead to smaller changes of participants' scores than outcomes that were unexpected. As such, Elo rating is an efficient tool to rate individual stimuli when a large number of such stimuli are paired against each other in the context of experiments where the goal is to rank stimuli according to some characteristic of interest. Clark et al (2018) <doi:10.1371/journal.pone.0190393> provides details.
+License: GPL (>=3)
+LinkingTo: Rcpp, RcppArmadillo
+Imports: Rcpp, psychotools, Rdpack
+Suggests: 
+    xtable,
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
+Encoding: UTF-8
+RoxygenNote: 6.1.1
+RdMacros: Rdpack
+URL: https://github.com/gobbios/EloChoice
+BugReports: https://github.com/gobbios/EloChoice/issues
