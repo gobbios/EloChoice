@@ -1,6 +1,12 @@
 \name{NEWS}
 \title{News for Package \pkg{EloChoice}}
 
+\section{Changes in version 0.29.5 (2020-07-21)}{
+	\itemize{
+		\item testing via Travis CI and AppVeyor
+	}
+}
+
 \section{Changes in version 0.29.4 (2019-07-03)}{
 	\itemize{
 		\item now compatible with R >= 3.5

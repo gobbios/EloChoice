@@ -4,8 +4,15 @@
 \alias{triplets}
 \title{calculate ratings from sequence of rating events, allowing for more than two stimuli}
 \usage{
-triplets(xdata, winner, runs = 2, startvalue = 0, k = 100,
-  progressbar = TRUE, mode = "avg")
+triplets(
+  xdata,
+  winner,
+  runs = 2,
+  startvalue = 0,
+  k = 100,
+  progressbar = TRUE,
+  mode = "avg"
+)
 }
 \arguments{
 \item{xdata}{data.frame or matrix with stimulus IDs, each row representing one trial, needs to contain at least two columns}
