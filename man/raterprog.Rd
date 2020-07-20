@@ -7,6 +7,10 @@
 \usage{
 raterprog(winner, loser, raterID, runs=100, ratershuffle=1, progbar=TRUE, kval=100,
 startvalue=0, normprob=FALSE)
+<<<<<<< HEAD
+=======
+raterprogplot(xdata)
+>>>>>>> 5288682154b1e13d3203badc657232b5924b8891
 
 raterprogplot(xdata)
 }
@@ -51,7 +55,12 @@ physical <- physical[physical$raterID < 14, ]
 
 x <- raterprog(physical$Winner, physical$Loser, physical$raterID, ratershuffle = 1)
 raterprogplot(x)
+<<<<<<< HEAD
 \donttest{
+=======
+
+\dontrun{
+>>>>>>> 5288682154b1e13d3203badc657232b5924b8891
 # with multiple orders in which raters are added
 x <- raterprog(physical$Winner, physical$Loser, physical$raterID, ratershuffle = 10)
 raterprogplot(x)}

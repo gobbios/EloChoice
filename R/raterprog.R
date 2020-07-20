@@ -36,7 +36,8 @@
 #' 
 #' x <- raterprog(physical$Winner, physical$Loser, physical$raterID, ratershuffle = 1)
 #' raterprogplot(x)
-#' \donttest{
+#' 
+#' \dontrun{
 #' # with multiple orders in which raters are added
 #' x <- raterprog(physical$Winner, physical$Loser, physical$raterID, ratershuffle = 10)
 #' raterprogplot(x)}
