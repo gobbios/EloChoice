@@ -28,7 +28,13 @@ summary.elochoice <- function(object, ...) {
       "-",
       max(object$ov[, "total"]),
       "\n")
-  cat("startvalue:", object$misc["startval"], "\n")
+  
+  if (length(unique(object$startvalues)) == 1) {
+    cat("startvalue:", unique(object$startvalues), "\n")
+  } else {
+    cat("startvalue: custom (manually supplied)", "\n")
+  }
+  
   cat("k:", object$misc["kval"], "\n")
   cat("randomizations:", object$misc["runs"], "\n")
   if (as.numeric(object$misc["slf"]) > 0) message("original data contained ", object$misc["slf"], " 'self-contests' (identical winner and loser)\nthese cases were excluded from the sequence!")

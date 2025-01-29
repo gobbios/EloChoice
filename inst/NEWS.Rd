@@ -1,6 +1,12 @@
 \name{NEWS}
 \title{News for Package \pkg{EloChoice}}
 
+\section{Changes in version 0.29.6 (2025-01-29)}{
+	\itemize{
+		\item allow individual custom start values in elochoice()
+	}
+}
+
 \section{Changes in version 0.29.5 (2020-07-21)}{
 	\itemize{
 		\item testing via Travis CI and AppVeyor

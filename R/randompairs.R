@@ -1,6 +1,3 @@
-# randompairs 15_06_12
-
-
 #' generate random data of pairwise preference ratings
 #'
 #' @param nstim numeric, number of stimuli, must be less than 2,602

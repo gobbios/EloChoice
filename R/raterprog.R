@@ -51,6 +51,9 @@ raterprog <- function(winner, loser, raterID, runs=100, ratershuffle=1, progbar=
   if (length(winner) == 0) stop("winner is empty", call. = FALSE)
   if (length(loser) == 0) stop("loser is empty", call. = FALSE)
   if (length(raterID) == 0) stop("rater is empty", call. = FALSE)
+  if (length(startvalue) > 1) {
+    stop("currently only one start value allowed...", call. = FALSE)
+  }
 
   # get rater IDs
   rids <- unique(as.character(raterID))

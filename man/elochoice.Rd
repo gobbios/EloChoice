@@ -17,7 +17,9 @@ elointnorm(winner, loser, allids, kval, startvalues, runs)
 
 \item{kval}{numeric, k-value, which determines the maximum number of points a stimulus' rating can change after a single rating event, by default 100}
 
-\item{startvalue}{numeric, start value around which ratings are centered, by default 0}
+\item{startvalue}{numeric, start value around which ratings are centered,
+by default 0. Can also be a named vector with start values specific
+for each stimulus.}
 
 \item{runs}{numeric, number of randomizations}
 
@@ -51,6 +53,22 @@ set.seed(123)
 res <- elochoice(winner = physical$Winner, loser = physical$Loser, runs = 100)
 summary(res)
 ratings(res, show = NULL, drawplot = TRUE)
+
+# custom start values
+set.seed(1)
+xdata <- randompairs(nstim = 10, nint = 20)
+res <- elochoice(winner = xdata$winner, loser = xdata$loser,
+                 runs = 100, startvalue = 0)
+ratings(res)                
+
+# start values as named vector with all stimuli
+allids <- unique(c(xdata$winner, xdata$loser)) 
+startvalue <- rep(0, length(allids))
+names(startvalue) <- allids
+startvalue["a"] <- 1000
+res <- elochoice(winner = xdata$winner, loser = xdata$loser,
+                 runs = 100, startvalue = startvalue)
+ratings(res)                  
 }
 \references{
 \insertRef{elo1978}{EloChoice}

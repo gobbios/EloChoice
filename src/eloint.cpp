@@ -16,7 +16,7 @@ List eloint(CharacterVector winner, CharacterVector loser, CharacterVector allid
   NumericVector svals = clone<NumericVector>(startvalues) ;
 
   NumericMatrix indexmat(r, winner.size()) ;
-  int startval = startvalues[0] ;
+  // int startval = startvalues[0] ;
   NumericMatrix elomat(r, allids.size());
 
   IntegerVector randvec = Range(1, loser.size()) ;
@@ -81,7 +81,8 @@ List eloint(CharacterVector winner, CharacterVector loser, CharacterVector allid
     }
     randvec = indexmat(runindex, _) ;
     // reset startvalues
-    for (int k = 0; k < allids.size(); k++) svals(k) = startval;
+    // for (int k = 0; k < allids.size(); k++) svals(k) = startval;
+    for (int k = 0; k < allids.size(); k++) svals(k) = startvalues(k);
 
   }
   return Rcpp::List::create(elomat, allids, umat, dmat, wmat);
@@ -104,7 +105,7 @@ List elointnorm(CharacterVector winner, CharacterVector loser, CharacterVector a
 
 
   NumericMatrix indexmat(r, winner.size()) ;
-  int startval = startvalues[0] ;
+  // int startval = startvalues[0] ;
   NumericMatrix elomat(r, allids.size());
 
   IntegerVector randvec = Range(1, loser.size()) ;
@@ -166,8 +167,9 @@ List elointnorm(CharacterVector winner, CharacterVector loser, CharacterVector a
     }
     randvec = indexmat(runindex, _) ;
     // reset startvalues
-    for (int k = 0; k < allids.size(); k++) svals(k) = startval;
-
+    // for (int k = 0; k < allids.size(); k++) svals(k) = startval;
+    for (int k = 0; k < allids.size(); k++) svals(k) = startvalues(k);
+    
   }
   return Rcpp::List::create(elomat, allids, umat, dmat, wmat);
 

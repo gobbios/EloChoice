@@ -1,5 +1,13 @@
 # EloChoice
 
+Install version from GitHub:
+
+```
+devtools::install_github("gobbios/EloChoice", build_vignettes = FALSE, dependencies = TRUE)
+```
+
+Set `build_vignettes = TRUE` if you want to generate the vignette/tutorial document during installation.
+
 currently on CRAN:
 
 [![CRAN\_Status\_Badge](http://www.r-pkg.org/badges/version/EloChoice)](https://cran.r-project.org/package=EloChoice)
